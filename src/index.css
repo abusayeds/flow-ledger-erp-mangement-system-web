@@ -1,0 +1,939 @@
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap");
+@import "tailwindcss";
+@plugin "daisyui";
+
+.google-sans-flex-invoice {
+  font-family: "Google Sans Flex", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-variation-settings:
+    "slnt" 0,
+    "wdth" 100,
+    "GRAD" 0,
+    "ROND" 0;
+}
+@theme {
+  /* ── Brand palette (theme spec) ───────────────────────────────
+   * Primary brand color is #007aff. The app skins its brand almost
+   * entirely through hardcoded Tailwind `blue-*` utilities, so we
+   * remap the whole blue ramp onto the brand here — one change
+   * re-skins every `bg-blue-600 / text-blue-600 / ring-blue-500`
+   * across the app. Anchor: blue-600 = brand #007aff.            */
+  --color-blue-50: #11243a;
+  --color-blue-100: #15314f;
+  --color-blue-200: #1d4675;
+  --color-blue-300: #2f6dba;
+  --color-blue-400: #3391ff;
+  --color-blue-500: #1a85ff;
+  --color-blue-600: #007aff;
+  /* 700-900 are used as TEXT on dark bg (and as button hover, where
+   * lightening is the right dark-mode behavior) — keep them bright. */
+  --color-blue-700: #3391ff;
+  --color-blue-800: #66acff;
+  --color-blue-900: #99c8ff;
+
+  /* Brand / semantic tokens */
+  --color-primary: #007aff;
+  --color-primary-dark: #0062cc;
+  --color-secondary: #6366f1;
+  --color-accent: #8b5cf6;
+  --color-neutral: #0f172a;
+  --color-success: #34a853;
+  --color-warning: #fd8d0a;
+  --color-error: #ff0303;
+  --color-info: #007aff;
+
+  /* ── Dark theme: inverted gray ramp ───────────────────────────
+   * The app uses light grays for surfaces (white, gray-50/100/200)
+   * and dark grays for text (gray-500..900). Inverting the ramp
+   * flips the WHOLE app to dark in one place: `bg-gray-50` becomes
+   * a near-black surface and `text-gray-900` becomes near-white,
+   * with no per-file edits. `--color-white` is left as #fff so
+   * `text-white` / `border-white` stay correct; `bg-white` is
+   * remapped to a dark surface via a class override below.        */
+  --color-gray-50: #1a212a;
+  --color-gray-100: #212a33;
+  --color-gray-200: #2a333d;
+  --color-gray-300: #3a444f;
+  --color-gray-400: #8b94a0;
+  --color-gray-500: #a6aeb8;
+  --color-gray-600: #c1c8d0;
+  --color-gray-700: #d2d8de;
+  --color-gray-800: #e6e9ec;
+  --color-gray-900: #f2f4f6;
+  /* Mirror slate (used in a few places) onto the same dark ramp */
+  --color-slate-50: #1a212a;
+  --color-slate-100: #212a33;
+  --color-slate-200: #2a333d;
+
+  /* Dark base colors (app surfaces) */
+  --color-base-50: #12171d;
+  --color-base-100: #1a212a;
+  --color-base-200: #2a333d;
+  --color-base-300: #3a444f;
+  --color-base-400: #6b7480;
+  --color-base-500: #9aa3ad;
+  --color-base-600: #b8c0c9;
+  --color-base-700: #d2d8de;
+  --color-base-800: #e6e9ec;
+  --color-base-900: #f2f4f6;
+
+  /* Premium Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+/* ── Theme spec: shared semantic variables (single source of truth) ──
+ * Brand color #007aff and supporting tokens, available app-wide for any
+ * component that prefers var() over Tailwind utilities. Fonts intentionally
+ * left untouched (project keeps Google Sans Flex / Inter). */
+:root {
+  --themeColor: #007aff;
+  --themeText: #007aff;
+  --brandColor: #007aff;
+  --bgBlue: #007aff;
+  --linkColor: #007aff;
+  --iconColorPrimary: #007aff;
+  --themeButton: #007aff;
+  --themeActiveBorder: #007aff;
+  --tabActiveBlue: #007aff;
+  --blueHeader: #007aff;
+  --mainHeaderBG: #007aff;
+  --searchbarBg: #036cdf;
+  --sidebarActiveBG: #007aff;
+  --sidebarBG: #212a33;
+  --searchDivBG: #007aff;
+
+  /* Light brand tints */
+  --blueLight: #007aff0d;
+  --greenLight: #34a85310;
+  --redLight: #ea433510;
+  --yellowlight: #fbbc0410;
+  --referBg: rgba(0, 122, 255, 0.1);
+  --activeListBG: #e9f5fe;
+  --activeCompanyBG: #d9f4ff;
+  --runningTableBG: rgba(0, 122, 255, 0.102);
+  --runningTableBorder: rgba(0, 122, 255, 0.2);
+  --planSwitchBorder: rgba(0, 122, 255, 0.2);
+
+  /* Status colors */
+  --warning: #fd8d0a;
+  --orange: #fd8d0a;
+  --danger: #ff0303;
+  --successText: #52b548;
+  --markTextColor: #0288da;
+
+  /* Neutrals */
+  --black: #000;
+  --white: #fff;
+  --bodyBG: #fff;
+  --modalBg: #fff;
+  --bodyColor: rgba(0, 0, 0, 0.87);
+}
+
+/* ── Dark theme: surface class overrides ──────────────────────────
+ * These are intentionally UNLAYERED so they win over Tailwind's
+ * `@layer utilities` regardless of source order. `bg-white` is the
+ * dominant surface (cards, modals, inputs, dropdowns) and the
+ * arbitrary `bg-[#FAFBFC]` panels are remapped to dark surfaces.
+ * `--surface` = card level, slightly lighter than the app bg so
+ * cards lift off the background. */
+:root {
+  --app-bg: #12171d;
+  --surface: #1a212a;
+  --surface-2: #212a33;
+  /* UA widgets (native select popups, date/time pickers) follow the app
+   * theme — without this, Chrome renders LIGHT popups while our remapped
+   * text colors are near-white, making <option> text invisible. */
+  color-scheme: dark;
+}
+:root[data-qayd-theme="light"] {
+  color-scheme: light;
+}
+.bg-white {
+  background-color: var(--surface) !important;
+}
+.hover\:bg-white:hover {
+  background-color: var(--surface-2) !important;
+}
+.bg-\[\#FAFBFC\],
+.bg-\[\#F8F9FA\] {
+  background-color: var(--app-bg) !important;
+}
+
+/* ── SweetAlert2 dialogs — theme-aware (app-wide) ──────────────────
+ * Swal ships its own unstyled white popup; without this it stays a
+ * bright white card in dark Appearance. Uses the same surface/gray
+ * variables as the rest of the app, so it flips with data-qayd-theme
+ * automatically — no per-call styling needed. */
+.swal2-popup {
+  background: var(--surface) !important;
+  color: var(--color-base-900) !important;
+}
+.swal2-title,
+.swal2-html-container {
+  color: var(--color-base-900) !important;
+}
+.swal2-input,
+.swal2-textarea,
+.swal2-select,
+.swal2-file {
+  background: var(--surface-2) !important;
+  color: var(--color-base-900) !important;
+  border: 1px solid var(--color-gray-300) !important;
+  box-shadow: none !important;
+}
+.swal2-input:focus,
+.swal2-textarea:focus,
+.swal2-select:focus {
+  border-color: var(--themeColor) !important;
+  box-shadow: 0 0 0 1px var(--themeColor) !important;
+}
+.swal2-validation-message {
+  background: var(--surface-2) !important;
+  color: var(--color-base-900) !important;
+}
+.swal2-actions .swal2-cancel {
+  background: var(--surface-2) !important;
+  color: var(--color-base-900) !important;
+}
+.swal2-close {
+  color: var(--color-base-500) !important;
+}
+.swal2-toast {
+  background: var(--surface) !important;
+  color: var(--color-base-900) !important;
+}
+
+/* ── Status / Draft badges (app-wide) ─────────────────────────────
+ * Dark theme inverts the gray ramp, so utilities like
+ * `bg-gray-600 text-white` become light-gray + white (unreadable).
+ * Pin true slate chips whenever gray bg is paired with white text.
+ * Soft Draft chips (`bg-gray-100 text-gray-*`) also get clearer
+ * contrast under dark Appearance. */
+.bg-gray-500.text-white {
+  background-color: #6b7280 !important;
+  color: #ffffff !important;
+}
+.bg-gray-600.text-white {
+  background-color: #4b5563 !important;
+  color: #ffffff !important;
+}
+.bg-gray-700.text-white {
+  background-color: #374151 !important;
+  color: #ffffff !important;
+}
+.bg-gray-800.text-white {
+  background-color: #1f2937 !important;
+  color: #ffffff !important;
+}
+.bg-gray-900.text-white {
+  background-color: #111827 !important;
+  color: #ffffff !important;
+}
+:root:not([data-qayd-theme="light"]) .bg-gray-100.text-gray-600,
+:root:not([data-qayd-theme="light"]) .bg-gray-100.text-gray-700,
+:root:not([data-qayd-theme="light"]) .bg-gray-100.text-gray-700.border-gray-300,
+:root:not([data-qayd-theme="light"]) .bg-gray-100.text-gray-700.border-gray-200 {
+  background-color: #3a444f !important;
+  color: #f3f4f6 !important;
+  border-color: #4b5563 !important;
+}
+
+/* Shared module shell used by Sales/Purchase split layouts so the
+ * list panel, detail panel and title bars stay visually consistent. */
+.module-workspace {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--app-bg);
+}
+
+.module-detail-panel {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  margin: 0.5rem;
+  background: var(--surface) !important;
+  border: 1px solid var(--color-gray-300);
+  box-shadow: var(--shadow-sm);
+}
+
+.module-empty-panel {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.5rem;
+  background: var(--surface) !important;
+  border: 1px solid var(--color-gray-300);
+  box-shadow: var(--shadow-sm);
+}
+
+.module-title-bar {
+  height: 3rem;
+  min-height: 3rem;
+  max-height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--color-gray-300);
+  background: var(--color-gray-100);
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+.dashboard-shell {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  margin: 0.5rem;
+  background: var(--surface) !important;
+  border: 1px solid var(--color-gray-300);
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-title-bar {
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--color-gray-300);
+  background: var(--color-gray-100);
+}
+
+.module-page-shell {
+  min-height: 100%;
+  margin: 0.5rem;
+  padding: 1rem;
+  background: var(--surface) !important;
+  border: 1px solid var(--color-gray-300);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (min-width: 768px) {
+  .module-page-shell {
+    padding: 1.5rem;
+  }
+}
+
+/* ── Field de-box: Material-style underline fields (app-wide) ──────
+ * Text-like inputs, selects and textareas lose their box and get a
+ * themed underline; focus shows a 2px brand-blue line.
+ * UNLAYERED intentionally (like the surface overrides above) so it
+ * beats `@layer utilities` (border-*, rounded-*, bg-*, focus:ring-*)
+ * with zero TSX edits — paint-only, behavior untouched.
+ * Border edges are made TRANSPARENT rather than removed, and focus
+ * thickening uses box-shadow, so element geometry never changes.
+ *
+ * Kept boxed on purpose:
+ *  - non-text input types (checkbox/radio/range/file/color/buttons)
+ *  - anything inside a <table> (qty / rate / copies cells)
+ *  - search fields ([type=search] or placeholder starting "Search")
+ *  - pill inputs (.rounded-full) and manual opt-outs (.keep-box)
+ */
+
+/* Boxed native select/input that must stay readable under dark theme.
+ * ALWAYS add `keep-box ua-field` on settings dropdowns / time inputs —
+ * without this, field-debox + remapped gray makes options look solid white
+ * with invisible text. Never "fix" with only bg-white text-gray-900. */
+.ua-field.keep-box,
+select.ua-field.keep-box,
+input.ua-field.keep-box,
+textarea.ua-field.keep-box {
+  background-color: var(--surface-2) !important;
+  color: var(--color-base-900) !important;
+  border: 1px solid var(--color-gray-300) !important;
+  border-radius: 0.375rem !important;
+  border-bottom-color: var(--color-gray-300) !important;
+  box-shadow: none !important;
+}
+.ua-field.keep-box:focus {
+  border-color: var(--themeColor) !important;
+  box-shadow: 0 0 0 1px var(--themeColor) !important;
+}
+.ua-field.keep-box option {
+  background-color: var(--surface) !important;
+  color: var(--color-base-900) !important;
+}
+
+/* Native <select> must stay boxed app-wide (CRM/HRM). Debox + dark
+ * color-scheme made open option lists look solid white / unreadable. */
+select:not(.rounded-full, table select) {
+  background-color: var(--surface-2) !important;
+  color: var(--color-base-900) !important;
+  border: 1px solid var(--color-gray-300) !important;
+  border-radius: 0.375rem !important;
+  box-shadow: none !important;
+}
+select:not(.rounded-full, table select):focus {
+  border-color: var(--themeColor) !important;
+  box-shadow: 0 0 0 1px var(--themeColor) !important;
+}
+/* Options follow theme surfaces — do not force white. */
+select option,
+select optgroup {
+  background-color: var(--surface) !important;
+  color: var(--color-base-900) !important;
+}
+
+/* Custom dropdown panels (SearchSelect / AsyncSearchSelect) */
+.ua-dropdown-panel {
+  background-color: var(--surface) !important;
+  color: var(--color-base-900) !important;
+  border: 1px solid var(--color-gray-300) !important;
+}
+.ua-dropdown-panel input {
+  background-color: var(--surface-2) !important;
+  color: var(--color-base-900) !important;
+}
+
+input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="button"],
+    [type="submit"],
+    [type="reset"],
+    [type="image"],
+    [type="search"],
+    [placeholder^="Search"],
+    [placeholder^="search"],
+    .rounded-full,
+    .keep-box,
+    table input
+  ),
+textarea:not(.keep-box, table textarea) {
+  border-color: transparent;
+  border-bottom-color: var(--color-gray-300);
+  border-radius: 0;
+  background-color: transparent !important;
+  box-shadow: none;
+  outline: none;
+
+  &:focus {
+    border-bottom-color: var(--themeColor);
+    box-shadow: 0 1px 0 0 var(--themeColor);
+  }
+  &:disabled,
+  &[readonly] {
+    border-bottom-style: dashed;
+  }
+}
+
+/* ── Floating hint (Material outlined, no label background) ────────
+ * Border lives on `.fl-wrap`. When floated/focused, the top border is
+ * drawn as left/right stubs so the label sits in the gap (in the
+ * border line) without any fill behind the text. */
+@layer components {
+.fl-wrap {
+  position: relative;
+  border: 1px solid var(--color-gray-300);
+  border-radius: 0.375rem;
+  --fl-border: var(--color-gray-300);
+}
+.fl-wrap:focus-within {
+  --fl-border: var(--themeColor);
+  border-color: var(--themeColor);
+}
+/* Inner controls: no own border/ring — wrap owns the chrome */
+.fl-wrap > :is(input, select, textarea),
+.fl-wrap > .relative > :is(input, select, textarea),
+.fl-wrap .ua-field.keep-box,
+.fl-wrap select:not(.rounded-full) {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-color: transparent !important;
+}
+.fl-wrap:focus-within .ua-field.keep-box,
+.fl-wrap:focus-within select:not(.rounded-full) {
+  border: none !important;
+  box-shadow: none !important;
+}
+.fl-label {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--color-gray-400);
+  pointer-events: none;
+  z-index: 2;
+  background: transparent !important;
+  transition:
+    top 0.15s ease,
+    left 0.15s ease,
+    transform 0.15s ease,
+    font-size 0.15s ease,
+    color 0.15s ease,
+    padding 0.15s ease;
+}
+
+/* Floated / focused — keep layout as normal block (no grid).
+ * Absolute top-border stubs + label centered on the top edge. */
+.fl-wrap:has(
+    :where(
+      input:not(:placeholder-shown),
+      input[placeholder]:not([placeholder=" "]),
+      input[type="date"],
+      input[type="month"],
+      input[type="time"],
+      textarea:not(:placeholder-shown),
+      textarea[placeholder]:not([placeholder=" "]),
+      select
+    )
+  ),
+.fl-wrap:focus-within {
+  border-top-color: transparent;
+}
+.fl-wrap:has(
+    :where(
+      input:not(:placeholder-shown),
+      input[placeholder]:not([placeholder=" "]),
+      input[type="date"],
+      input[type="month"],
+      input[type="time"],
+      textarea:not(:placeholder-shown),
+      textarea[placeholder]:not([placeholder=" "]),
+      select
+    )
+  )::before,
+.fl-wrap:focus-within::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 1px;
+  background: var(--fl-border);
+  pointer-events: none;
+  z-index: 1;
+}
+.fl-wrap:has(
+    :where(
+      input:not(:placeholder-shown),
+      input[placeholder]:not([placeholder=" "]),
+      input[type="date"],
+      input[type="month"],
+      input[type="time"],
+      textarea:not(:placeholder-shown),
+      textarea[placeholder]:not([placeholder=" "]),
+      select
+    )
+  )::after,
+.fl-wrap:focus-within::after {
+  content: "";
+  position: absolute;
+  /* starts after a typical label; grows with long labels via max() */
+  left: max(4.5rem, 30%);
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--fl-border);
+  pointer-events: none;
+  z-index: 1;
+}
+.fl-wrap:has(
+    :where(
+      input:not(:placeholder-shown),
+      input[placeholder]:not([placeholder=" "]),
+      input[type="date"],
+      input[type="month"],
+      input[type="time"],
+      textarea:not(:placeholder-shown),
+      textarea[placeholder]:not([placeholder=" "]),
+      select
+    )
+  )
+  > .fl-label {
+  top: 0;
+  left: 10px;
+  transform: translateY(-50%);
+  font-size: 11px;
+  line-height: 1;
+  padding: 0 4px;
+  color: var(--color-gray-500);
+  background: transparent !important;
+  white-space: nowrap;
+  z-index: 2;
+}
+/* Focused: brand blue (same as before) on label + border */
+.fl-wrap:focus-within > .fl-label {
+  top: 0;
+  left: 10px;
+  transform: translateY(-50%);
+  font-size: 11px;
+  line-height: 1;
+  padding: 0 4px;
+  color: var(--themeColor);
+  background: transparent !important;
+  white-space: nowrap;
+  z-index: 2;
+}
+}
+
+/* Same treatment for the "wrapper carries the border" field shape:
+ * a bordered div/label whose direct child is the text control. */
+:is(div, label).border:has(
+    > input:not([type="checkbox"], [type="radio"], [type="search"], [placeholder^="Search"], .rounded-full),
+    > select,
+    > textarea
+  ):not(table *, .keep-box, .rounded-full) {
+  border-color: transparent;
+  border-bottom-color: var(--color-gray-300);
+  border-radius: 0;
+  background-color: transparent !important;
+
+  &:focus-within {
+    border-bottom-color: var(--themeColor);
+    box-shadow: 0 1px 0 0 var(--themeColor);
+  }
+}
+
+/* ── Light theme (opt-in via Appearance = Light / Auto+light OS) ───────
+ * The dark look above is the default. Setting data-qayd-theme="light" on <html>
+ * re-points the ramp + surface variables to standard light values, so every
+ * `bg-white / bg-gray-* / text-gray-* / border-*` utility and the surface
+ * classes above flip to light with no per-component edits. The `.theme` module
+ * (src/lib/theme.ts) resolves the saved Appearance and sets this attribute. */
+:root[data-qayd-theme="light"] {
+  /* app surfaces */
+  --app-bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #f9fafb;
+  --sidebarBG: #ffffff;
+
+  /* gray ramp → standard Tailwind light scale */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+
+  /* base ramp (surfaces → text) */
+  --color-base-50: #f4f6f8;
+  --color-base-100: #ffffff;
+  --color-base-200: #e5e7eb;
+  --color-base-300: #d1d5db;
+  --color-base-400: #9ca3af;
+  --color-base-500: #6b7280;
+  --color-base-600: #4b5563;
+  --color-base-700: #374151;
+  --color-base-800: #1f2937;
+  --color-base-900: #111827;
+
+  /* blue ramp: keep brand 600 = #007aff; light tints below, darker text above */
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-900: #1e3a8a;
+}
+
+/* Sidebar nav shell — dark navy by default; soft gray in light theme */
+.sidebar-nav-shell {
+  background-color: #1e293b;
+  border-color: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+}
+.sidebar-nav-shell .sidebar-nav-item {
+  color: inherit;
+}
+.sidebar-nav-shell .sidebar-nav-item.is-active,
+.sidebar-nav-shell .sidebar-nav-item.is-active:hover {
+  background-color: #007aff;
+  color: #fff !important;
+}
+
+/* Light: never allow white text on light hover backgrounds */
+:root[data-qayd-theme="light"] .sidebar-nav-shell {
+  background-color: #ffffff;
+  border-color: #e5e7eb;
+  color: #1f2937;
+}
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-item {
+  color: #1f2937 !important;
+}
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-item:hover {
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
+}
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-item:hover *,
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-item:not(.is-active) * {
+  color: inherit !important;
+}
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-item.is-active,
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-item.is-active:hover {
+  background-color: #007aff !important;
+  color: #ffffff !important;
+}
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-item.is-active *,
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-item.is-active:hover * {
+  color: #ffffff !important;
+}
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-footer {
+  border-color: #e5e7eb;
+}
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-footer a {
+  color: #1f2937 !important;
+}
+:root[data-qayd-theme="light"] .sidebar-nav-shell .sidebar-nav-footer a:hover {
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+/* List sidebar footer — adapts with theme */
+.list-sidebar-footer {
+  background-color: #334155; /* slate-700 */
+  border-color: #475569; /* slate-600 */
+  color: #fff;
+}
+:root[data-qayd-theme="light"] .list-sidebar-footer {
+  background-color: #ffffff;
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-900);
+}
+:root[data-qayd-theme="light"] .list-sidebar-footer .list-sidebar-footer-muted {
+  color: var(--color-gray-600);
+  opacity: 1;
+}
+:root[data-qayd-theme="light"] .list-sidebar-footer button {
+  color: var(--color-gray-700);
+}
+:root[data-qayd-theme="light"] .list-sidebar-footer button:hover:not(:disabled) {
+  background-color: var(--color-gray-200) !important;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-base-200);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--app-bg);
+    color: var(--color-base-900);
+  }
+
+  /* Inter font weights */
+  @font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
+  }
+
+  /* Checkboxes — light outlined rounded square (unchecked) that fills with the
+     brand blue + white tick when checked. Native boxes rendered as dark filled
+     squares on the dark theme; this replaces them app-wide with one style.
+     Placed in @layer base so per-element size utilities (w-4/w-5) still win. */
+  input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    border: 1.5px solid #6b7280; /* gray-500 — visible outline on the dark surface */
+    border-radius: 5px;
+    /* transparent so the box is a clean OUTLINE that inherits whatever surface it
+       sits on (the app is dark-themed — a hardcoded white fill showed as a solid
+       white square). Checked state fills with brand blue below. */
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition:
+      background 0.12s ease,
+      border-color 0.12s ease;
+  }
+  input[type="checkbox"]:hover {
+    border-color: #9ca3af; /* gray-400 — lighter on hover */
+  }
+  input[type="checkbox"]:checked {
+    background: #007aff; /* brand blue */
+    border-color: #007aff;
+  }
+  input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 46%;
+    width: 0.28em;
+    height: 0.55em;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: translate(-50%, -50%) rotate(45deg);
+  }
+  input[type="checkbox"]:focus-visible {
+    outline: 2px solid #007aff;
+    outline-offset: 1px;
+  }
+  input[type="checkbox"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@layer utilities {
+  /* Premium Glass Effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* Premium Gradient */
+  .gradient-primary {
+    background: linear-gradient(135deg, #007aff 0%, #0062cc 100%);
+  }
+
+  /* Modern Scrollbar — tiny, hidden until hover; then clear thumb color */
+  .custom-scrollbar,
+  .hover-scrollbar {
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: transparent transparent;
+  }
+
+  .custom-scrollbar:hover,
+  .hover-scrollbar:hover {
+    scrollbar-color: var(--color-base-400) transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar,
+  .hover-scrollbar::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track,
+  .hover-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb,
+  .hover-scrollbar::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 100px;
+  }
+
+  .custom-scrollbar:hover::-webkit-scrollbar-thumb,
+  .hover-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: var(--color-base-400);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+  .hover-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-base-400);
+  }
+
+  /* List sidebar filter chips: one row, horizontal scroll, no wrap */
+  .list-filter-toolbar {
+    min-height: 2.5rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .list-filter-toolbar > * {
+    flex-shrink: 0;
+  }
+
+.global-loading-track {
+  position: relative;
+  height: 4px;
+  width: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.global-loading-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28%;
+  min-width: 96px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent 0%, var(--themeColor) 20%, #66acff 50%, var(--themeColor) 80%, transparent 100%);
+  opacity: 0;
+  transform: translateX(-120%);
+  transition: opacity 0.2s ease;
+  box-shadow: 0 0 12px rgba(0, 122, 255, 0.45);
+  pointer-events: none;
+}
+
+.global-loading-bar.is-active {
+  opacity: 1;
+  animation: global-loading-slide 1.8s ease-in-out infinite;
+}
+
+@keyframes global-loading-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(420%);
+  }
+}
+
+  /* Premium Shadow */
+  .shadow-premium {
+    box-shadow:
+      0 8px 16px -4px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Smooth transitions */
+  .transition-all {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Directional tab-content PUSH (like the reference): the outgoing panel
+     slides away while the incoming one slides in from the opposite side.
+     Full panel width — clearly visible. Container must clip (overflow-hidden)
+     so the translated panels never create a horizontal scrollbar. */
+  @keyframes tab-in-from-right { from { transform: translateX(100%); }  to { transform: translateX(0); } }
+  @keyframes tab-in-from-left  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+  @keyframes tab-out-to-left   { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+  @keyframes tab-out-to-right  { from { transform: translateX(0); } to { transform: translateX(100%); } }
+  .tab-in-from-right { animation: tab-in-from-right 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+  .tab-in-from-left  { animation: tab-in-from-left  0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+  .tab-out-to-left   { animation: tab-out-to-left   0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+  .tab-out-to-right  { animation: tab-out-to-right  0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+}
