@@ -8,6 +8,12 @@
  *   PATCH /setting/app/reset    body: { type? }
  */
 import { api } from "@/lib/api/client";
+import {
+  THEME_UI_TO_API,
+  isHexColor,
+  normalizeThemeColors,
+  type ThemeColors,
+} from "@/lib/themeColors";
 
 /* ── section / type ids ─────────────────────────────────────────── */
 
@@ -17,6 +23,7 @@ export type ApiSettingType =
   | "currency_format"
   | "printer"
   | "whatsApp"
+  | "theme"
   | "invoice"
   | "proforma_invoice"
   | "sales_receipt"
@@ -38,6 +45,7 @@ export const UI_SECTION_TO_API: Record<string, ApiSettingType> = {
   currencyFormat: "currency_format",
   printer: "printer",
   whatsapp: "whatsApp",
+  themeColors: "theme",
   expense: "expense",
   product: "product",
   service: "service",
@@ -223,6 +231,17 @@ export function apiGeneralToUi(api: any, fallback: any) {
   };
 }
 
+export function apiThemeToUi(api: any, fallback: any): ThemeColors {
+  const fb = normalizeThemeColors(fallback);
+  if (!api || typeof api !== "object") return fb;
+  const out = { ...fb };
+  for (const [ui, apiKey] of Object.entries(THEME_UI_TO_API) as [keyof ThemeColors, string][]) {
+    const v = api[apiKey];
+    if (v === "" || isHexColor(v)) out[ui] = String(v).toLowerCase();
+  }
+  return out;
+}
+
 export function apiModulesToUi(api: any, fallback: any) {
   const out: Record<string, boolean> = { ...fallback };
   if (!api || typeof api !== "object") return out;
@@ -391,6 +410,9 @@ export function apiDocToUiSections(doc: any, defaults: Record<string, any>): Rec
       case "whatsApp":
         out[uiSection] = apiWhatsappToUi(raw, fb);
         break;
+      case "theme":
+        out[uiSection] = apiThemeToUi(raw, fb);
+        break;
       case "expense":
         out[uiSection] = apiExpenseToUi(raw, fb);
         break;
@@ -426,6 +448,14 @@ export function uiSectionToApiPayload(uiSection: string, value: any): Record<str
         appearance: value.appearance,
         default_mail: value.defaultMail,
       };
+    case "theme": {
+      const colors = normalizeThemeColors(value);
+      const payload: Record<string, unknown> = { type };
+      for (const [ui, apiKey] of Object.entries(THEME_UI_TO_API) as [keyof ThemeColors, string][]) {
+        payload[apiKey] = colors[ui];
+      }
+      return payload;
+    }
     case "modules": {
       const payload: Record<string, unknown> = { type };
       for (const [ui, apiKey] of Object.entries(MODULE_UI_TO_API)) {

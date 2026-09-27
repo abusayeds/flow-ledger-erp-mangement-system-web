@@ -26,13 +26,21 @@ import {
   type OrderSettings,
   DOC_LAYOUTS, TAB_TO_DOC_LAYOUT, type DocLayoutId,
 } from "@/lib/db/appSettings";
-import { applyTheme } from "@/lib/theme";
+import { applyTheme, resolveTheme } from "@/lib/theme";
+import {
+  applyThemeColors,
+  normalizeThemeColors,
+  THEME_COLOR_FALLBACKS,
+  THEME_PRESETS,
+  type ThemeColors,
+} from "@/lib/themeColors";
 import { showToast } from "@/utils/toast";
 import { ApiError } from "@/lib/api/ApiError";
 import { buildTimezoneOptions } from "@/services/notificationSettingsApi";
 
 const TABS = [
   "General",
+  "Theme",
   "Modules",
   "Currency & Format",
   "Printer",
@@ -57,6 +65,7 @@ const TABS = [
 const docKeyForTab = (tab: string) => DOC_TYPES.find((d) => d.label === tab)?.key;
 const SECTION_FOR_TAB: Record<string, string> = {
   General: "general",
+  Theme: "themeColors",
   Modules: "modules",
   "Currency & Format": "currencyFormat",
   Printer: "printer",
@@ -294,8 +303,9 @@ export const AppSettingsModal: React.FC<{ initialTab?: string; onClose: () => vo
 
   const [saving, setSaving] = useState(false);
 
-  // Appearance the modal opened with — used to revert the live theme preview on Cancel.
+  // Appearance + Theme colors the modal opened with — used to revert the live preview on Cancel.
   const persistedAppearance = useRef("Dark");
+  const persistedColors = useRef<ThemeColors | null>(null);
   useEffect(() => {
     (async () => {
       const synced = await syncAppSettingsFromBackend(true);
@@ -307,11 +317,16 @@ export const AppSettingsModal: React.FC<{ initialTab?: string; onClose: () => vo
         Object.assign(map, Object.fromEntries(entries));
       }
       persistedAppearance.current = map.general?.appearance || "Dark";
+      persistedColors.current = normalizeThemeColors(map.themeColors);
       setDrafts(map);
     })();
   }, []);
-  /* Cancel/Esc/backdrop: revert any live Appearance preview to what was saved. */
-  const cancel = () => { applyTheme(persistedAppearance.current); onClose(); };
+  /* Cancel/Esc/backdrop: revert any live Appearance / Theme preview to what was saved. */
+  const cancel = () => {
+    applyTheme(persistedAppearance.current);
+    if (persistedColors.current) applyThemeColors(persistedColors.current);
+    onClose();
+  };
   useEffect(() => {
     // Ignore Escape while the nested Exchange Rates modal owns it, so closing
     // that child doesn't also dismiss the settings modal underneath.
@@ -331,6 +346,7 @@ export const AppSettingsModal: React.FC<{ initialTab?: string; onClose: () => vo
     try {
       await Promise.all(Object.entries(drafts).map(([s, v]) => saveAppSettings(s, v)));
       persistedAppearance.current = drafts.general?.appearance || "Dark";
+      persistedColors.current = normalizeThemeColors(drafts.themeColors);
       showToast("Settings saved", "success");
       onClose();
     } catch (err) {
@@ -348,9 +364,14 @@ export const AppSettingsModal: React.FC<{ initialTab?: string; onClose: () => vo
       const next = await getAppSettings(section);
       setDraft(clone(next));
       if (section === "general" && next?.appearance) applyTheme(next.appearance);
+      if (section === "themeColors") {
+        persistedColors.current = normalizeThemeColors(next);
+        applyThemeColors(next);
+      }
       showToast(`${tab} settings reset to defaults`, "info");
     } catch (err) {
       setDraft(clone(SECTION_DEFAULTS[section] ?? {}));
+      if (section === "themeColors") applyThemeColors(SECTION_DEFAULTS.themeColors);
       const msg =
         err instanceof ApiError && err.message ? err.message : `${tab} reset locally (offline)`;
       showToast(msg, "info");
@@ -382,6 +403,14 @@ export const AppSettingsModal: React.FC<{ initialTab?: string; onClose: () => vo
             <Row label="Appearance"><Select value={draft.appearance} options={["Auto", "Light", "Dark"]} onChange={(v) => { patch({ appearance: v }); applyTheme(v); }} /></Row>
             <Row label="Default Mail"><Select value={draft.defaultMail} options={["Qayd Mail Server", "Custom SMTP"]} onChange={(v) => patch({ defaultMail: v })} width="min-w-[170px]" /></Row>
           </div>
+        );
+      case "Theme":
+        return (
+          <ThemeColorsPane
+            draft={normalizeThemeColors(draft)}
+            appearance={drafts?.general?.appearance || "Dark"}
+            onChange={(next) => { setDraft(next); applyThemeColors(next); }}
+          />
         );
       case "Modules":
         return (
@@ -702,6 +731,102 @@ const TimeLogPane: React.FC<{ draft: any; patch: (p: any) => void }> = ({ draft,
       <Accordion title="Summary" open={open === "Summary"} onToggle={() => setOpen((o) => (o === "Summary" ? null : "Summary"))}>
         <Row label="Time Log Rounding"><Select value={draft.rounding} options={["0 mins", "15 mins", "30 mins", "60 mins"]} onChange={(v) => patch({ rounding: v })} width="min-w-[110px]" /></Row>
       </Accordion>
+    </div>
+  );
+};
+
+/* ── Theme tab: custom colors per app area ─────────────────────── */
+const THEME_COLOR_ROWS: { key: keyof ThemeColors; label: string; hint: string }[] = [
+  { key: "buttonColor", label: "App Buttons", hint: "Buttons, toggles, links and highlights" },
+  { key: "navbarBg", label: "Navbar", hint: "Top bar background" },
+  { key: "sidebarBg", label: "Main Module Menu", hint: "Module dropdown (submenu) background" },
+  { key: "sidebarActive", label: "Main Module Active Item", hint: "Selected module in the navbar (defaults to the button color)" },
+  { key: "listSidebarBg", label: "List Sidebar", hint: "Record list panel background" },
+  { key: "layoutBg", label: "Layout Background", hint: "Page background behind the panels" },
+];
+
+const sameColors = (a: ThemeColors, b: ThemeColors) =>
+  (Object.keys(a) as (keyof ThemeColors)[]).every((k) => a[k] === b[k]);
+
+const ThemeColorsPane: React.FC<{
+  draft: ThemeColors;
+  appearance: string;
+  onChange: (d: ThemeColors) => void;
+}> = ({ draft, appearance, onChange }) => {
+  const mode = resolveTheme(appearance);
+  const fallback = (k: keyof ThemeColors) =>
+    k === "sidebarActive" && draft.buttonColor ? draft.buttonColor : THEME_COLOR_FALLBACKS[k][mode];
+  const set = (k: keyof ThemeColors, v: string) => onChange({ ...draft, [k]: v.toLowerCase() });
+
+  return (
+    <div>
+      <div className="border border-gray-200 rounded-md mb-3 px-4 py-3">
+        <div className="text-sm font-semibold text-gray-900 mb-2">Presets</div>
+        <div className="flex flex-wrap gap-2">
+          {THEME_PRESETS.map((p) => {
+            const active = sameColors(p.colors, draft);
+            const dots = [p.colors.buttonColor, p.colors.navbarBg, p.colors.sidebarBg].map(
+              (c, i) => c || [THEME_COLOR_FALLBACKS.buttonColor, THEME_COLOR_FALLBACKS.navbarBg, THEME_COLOR_FALLBACKS.sidebarBg][i][mode],
+            );
+            return (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => onChange({ ...p.colors })}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm transition-colors ${
+                  active ? "border-blue-600 text-blue-600" : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <span className="flex -space-x-1">
+                  {dots.map((c, i) => (
+                    <span key={i} className="w-3.5 h-3.5 rounded-full border border-gray-300" style={{ backgroundColor: c }} />
+                  ))}
+                </span>
+                {p.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="border border-gray-200 rounded-md">
+        {THEME_COLOR_ROWS.map(({ key, label, hint }) => {
+          const value = draft[key];
+          return (
+            <Row
+              key={key}
+              label={
+                <span className="block">
+                  <span className="block">{label}</span>
+                  <span className="block text-xs text-gray-500">{hint}</span>
+                </span>
+              }
+            >
+              <span className="flex items-center gap-2">
+                <input
+                  type="color"
+                  aria-label={`${label} color`}
+                  value={value || fallback(key)}
+                  onChange={(e) => set(key, e.target.value)}
+                  className="w-9 h-7 p-0.5 rounded border border-gray-300 bg-transparent cursor-pointer"
+                />
+                <span className="w-16 text-xs font-mono text-gray-600">{value ? value.toUpperCase() : "Default"}</span>
+                <button
+                  type="button"
+                  title="Use default color"
+                  disabled={!value}
+                  onClick={() => set(key, "")}
+                  className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            </Row>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-xs text-gray-500">
+        Changes preview live. "Default" follows the Appearance (Light / Dark) colors. Text on custom colors switches to light or dark automatically for readability.
+      </p>
     </div>
   );
 };

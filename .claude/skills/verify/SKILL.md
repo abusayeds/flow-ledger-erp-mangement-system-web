@@ -20,7 +20,7 @@ npx vite --port 5199 --strictPort   # dev server, background
 
 ## Auth gotcha (critical)
 
-Every route sits behind `PrivateRoute`; login needs a backend at `localhost:5500` which is normally absent.
+Every route sits behind `PrivateRoute`; login needs a backend at `localhost:2000` (flow_ledger_erp_management_server, `npm run dev`) which is normally absent.
 Bypass in Playwright (playwright-core + installed Chrome, no browser download):
 
 ```js

@@ -10,6 +10,8 @@
  */
 
 import { getAppSettings } from "./db/appSettings";
+import { applyCachedThemeColors, applyThemeColors } from "./themeColors";
+import { onTokenChange } from "./api/tokenStore";
 
 export type Appearance = "Auto" | "Light" | "Dark";
 const CACHE_KEY = "qayd_appearance";
@@ -48,17 +50,32 @@ export function applyCachedTheme(): void {
     /* ignore */
   }
   applyTheme(cached);
+  applyCachedThemeColors();
 }
 
-let mqBound = false;
-/** Read the persisted Appearance from the datastore, apply it, and keep "Auto"
- *  in sync with the OS scheme. Call once after the datastore is ready. */
-export async function initTheme(): Promise<void> {
+/** Load Appearance + custom Theme colors from settings and apply them. */
+async function loadThemeFromSettings(): Promise<void> {
   try {
     const g = await getAppSettings("general");
     applyTheme(g?.appearance || "Dark");
+    applyThemeColors(await getAppSettings("themeColors"));
   } catch {
     applyCachedTheme();
+  }
+}
+
+let mqBound = false;
+let tokenBound = false;
+/** Read the persisted Appearance + Theme colors, apply them, and keep "Auto"
+ *  in sync with the OS scheme. Call once after the datastore is ready. */
+export async function initTheme(): Promise<void> {
+  await loadThemeFromSettings();
+  if (!tokenBound) {
+    tokenBound = true;
+    // Signing in (or switching company) → pick up that account's theme.
+    onTokenChange((token) => {
+      if (token) void loadThemeFromSettings();
+    });
   }
   if (!mqBound && typeof window !== "undefined") {
     mqBound = true;

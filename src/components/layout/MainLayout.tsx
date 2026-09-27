@@ -1,18 +1,16 @@
 /**
  * File: src/components/layout/MainLayout.tsx
- * Main application layout with Header, Sidebar, and Outlet
+ * Main application layout: Header (logo + main module nav) and Outlet.
+ * There is no left sidebar — modules live in the navbar (TopNav).
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { Header } from "./Header";
-import { Sidebar } from "./Sidebar";
 import { DataTransferHost } from "@/features/dataTransfer";
 import { GlobalApiLoadingBar } from "./GlobalApiLoadingBar";
 
 export const MainLayout: React.FC = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   // List filter toolbars are single-row + overflow-x. Convert vertical wheel
   // into horizontal scroll so chips never need to wrap when the list is narrow.
   useEffect(() => {
@@ -31,17 +29,11 @@ export const MainLayout: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-[#FAFBFC]">
-      {/* Sidebar - Fixed */}
-      <Sidebar
-        mobileMenuOpen={mobileMenuOpen}
-        setMobileMenuOpen={setMobileMenuOpen}
-      />
-
       {/* Main Content Area — keep overflow on <main> only so header
           dropdowns (company menu, create, settings) are not clipped. */}
       <div className="relative flex-1 flex flex-col min-w-0 min-h-0">
         {/* Header - Fixed */}
-        <Header onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
+        <Header />
         <div className="pointer-events-none absolute left-0 right-0 top-16 z-30">
           <GlobalApiLoadingBar />
         </div>

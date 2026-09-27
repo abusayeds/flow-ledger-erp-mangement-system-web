@@ -1,19 +1,19 @@
 /**
  * File: src/components/layout/Header.tsx
- * Top app header — matches the reference layout (Qayd branding):
- *   logo + tagline | hamburger | search | orange (+) create mega-menu
- *   | timer pill | settings | bell | apps-grid | avatar
+ * Top app header (the app has no left sidebar — modules live here):
+ *   Dashboard ▾ · Sales ▾ · … as many modules as fit (TopNav)
+ *   | search icon (search field opens as a dropdown)
+ *   | orange (+): Create new + the modules that did not fit | settings | bell | avatar
  */
 
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { flushSync } from "react-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Plus,
-  Play,
-  Pause,
   Bell,
   ChevronDown,
-  Menu,
+  Search,
   X,
   Check,
   Megaphone,
@@ -36,16 +36,14 @@ import {
 } from "lucide-react";
 import { SettingsDropdown } from "@/pages/SettingsDropdown";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { ModuleColumns, TopNav } from "@/components/layout/TopNav";
+import { filterModuleGroups, groupModules, type NavItem } from "@/components/layout/navItems";
+import { FOCUS_GLOBAL_SEARCH_EVENT, focusNavbarSearch } from "@/lib/listToolbarEvents";
 import { MyAccountModal } from "@/components/modals/MyAccountModal";
 import useAuth from "@/hooks/useAuth";
 import { api } from "@/lib/api/client";
 import { toArray } from "@/services/_http";
 import { resolveMediaUrl } from "@/lib/env";
-import { useAppTimer, toggleAppTimer, formatAppTimer } from "@/lib/timerStore";
-
-interface HeaderProps {
-  onMenuClick: () => void;
-}
 
 /* ── Create mega-menu (columns mirror the reference) ─────────────── */
 const createGroups: {
@@ -106,8 +104,9 @@ const sampleNotifications = [
   { id: 3, title: "New vendor added", description: "Fair Electronics was added", time: "1d ago", unread: false },
 ];
 
-export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+export const Header: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const displayName = user?.name || "Faisal Chowdhury";
   const displayEmail = user?.email || "chowdhuryfaisal66@gmail.com";
@@ -118,9 +117,13 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const [logoBroken, setLogoBroken] = useState(false);
   const [isOwner, setIsOwner] = useState(true);
   const [planBadge, setPlanBadge] = useState<{ name: string; trial: boolean; expired: boolean } | null>(null);
-  const appTimer = useAppTimer();
 
   const [showCreate, setShowCreate] = useState(false);
+  /** Modules that did not fit in the navbar — listed inside the (+) menu. */
+  const [moreModules, setMoreModules] = useState<NavItem[]>([]);
+  const [createFilter, setCreateFilter] = useState("");
+  const createFilterRef = useRef<HTMLInputElement>(null);
+  const [showSearch, setShowSearch] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMyAccount, setShowMyAccount] = useState(false);
   const [showApps, setShowApps] = useState(false);
@@ -129,6 +132,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const [notifTab, setNotifTab] = useState<"notifications" | "announcements">("notifications");
 
   const createRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
   const appsRef = useRef<HTMLDivElement>(null);
@@ -197,10 +201,63 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
       if (createRef.current && !createRef.current.contains(t)) setShowCreate(false);
       if (notifRef.current && !notifRef.current.contains(t)) setShowNotifications(false);
       if (appsRef.current && !appsRef.current.contains(t)) setShowApps(false);
+      // The search's date picker renders in a body portal — clicks there are "inside".
+      const inDatePicker = (t as Element).closest?.(".app-date-panel");
+      if (searchRef.current && !searchRef.current.contains(t) && !inDatePicker) setShowSearch(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowSearch(false);
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
+
+  // Search lives behind an icon: the icon and the list pages' Search buttons
+  // (focusNavbarSearch) both open the dropdown; GlobalSearch stays mounted and
+  // focuses its own input on the same event.
+  useEffect(() => {
+    const open = () => {
+      // Commit synchronously: GlobalSearch focuses its input right after this
+      // event, and a still-hidden input can't take focus.
+      flushSync(() => {
+        setShowSearch(true);
+        setShowCreate(false);
+        setShowNotifications(false);
+      });
+    };
+    window.addEventListener(FOCUS_GLOBAL_SEARCH_EVENT, open);
+    return () => window.removeEventListener(FOCUS_GLOBAL_SEARCH_EVENT, open);
+  }, []);
+  useEffect(() => {
+    setShowSearch(false);
+    setShowCreate(false);
+  }, [location.pathname]);
+
+  // (+) menu: fresh filter + focus each time it opens.
+  useEffect(() => {
+    if (!showCreate) return;
+    setCreateFilter("");
+    createFilterRef.current?.focus();
+  }, [showCreate]);
+
+  const createQuery = createFilter.trim().toLowerCase();
+  const createShown = createGroups
+    .map((g) => ({
+      ...g,
+      items:
+        !createQuery || g.title.toLowerCase().includes(createQuery)
+          ? g.items
+          : g.items.filter((i) => i.label.toLowerCase().includes(createQuery)),
+    }))
+    .filter((g) => g.items.length > 0);
+  const moreGroups = filterModuleGroups(groupModules(moreModules), createFilter);
+  const moreActive = moreModules.some(
+    (m) => m.path === location.pathname || !!m.children?.some((c) => c.path === location.pathname),
+  );
 
   const unreadCount = notifications.filter((n) => n.unread).length;
   const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
@@ -240,85 +297,119 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   );
 
   return (
-    <div className="h-16 bg-white border-b border-gray-200 flex items-center px-3 sm:px-4 gap-2 sm:gap-3 relative z-40">
-      {/* Mobile-only menu toggle */}
-      <button
-        onClick={onMenuClick}
-        className="lg:hidden p-2 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
-        title="Menu"
-      >
-        <Menu className="w-6 h-6 text-gray-700" />
-      </button>
-
-      {/* Search + orange (+) — dropdown anchors to the search input's left edge */}
-      <div className="relative flex items-center gap-2 flex-shrink min-w-0 w-full max-w-[450px]" ref={createRef}>
-        <GlobalSearch />
-
-        {/* Orange create (+) */}
-        <button
-          onClick={() => {
-            setShowCreate((s) => !s);
-            setShowNotifications(false);
-            setShowApps(false);
-          }}
-          className="w-9 h-9 flex-shrink-0 bg-orange-500 hover:bg-orange-600 rounded-full flex items-center justify-center transition-colors shadow-sm"
-          title="Create new"
-        >
-          <Plus className="w-5 h-5 text-white" strokeWidth={2.2} />
-        </button>
-
-        {/* Mega menu: left edge = search input start; wider panel + larger labels */}
-        {showCreate && (
-          <div className="absolute left-0 top-[calc(100%+0.35rem)] z-50 bg-white rounded-xl shadow-xl border border-gray-200 px-5 py-5 w-[min(96vw,920px)] max-h-[min(80vh,560px)] overflow-auto custom-scrollbar">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4">
-              {createGroups.map((group) => (
-                <div key={group.title} className="min-w-0">
-                  <h4 className="text-base font-semibold text-gray-900 mb-3 tracking-tight">{group.title}</h4>
-                  <ul className="space-y-1">
-                    {group.items.map((it) => (
-                      <li key={it.label}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowCreate(false);
-                            navigate(it.path, { state: { openCreate: true } });
-                          }}
-                          className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-[15px] font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors text-left"
-                        >
-                          <it.icon className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                          <span className="truncate">{it.label}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Spacer to push right cluster to the end */}
-      <div className="flex-1" />
+    <div className="app-navbar h-16 bg-white border-b border-gray-200 flex items-center px-3 sm:px-4 gap-2 sm:gap-3 relative z-40">
+      {/* Main modules: Dashboard first, then as many as fit (the rest → (+) menu) */}
+      <TopNav onOverflowChange={setMoreModules} />
 
       {/* Right cluster */}
       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-
-        {/* Timer pill */}
-        <div className="hidden sm:flex items-center gap-2 pl-2 pr-3 py-1 bg-gray-100 border border-gray-200 rounded-full py-1.5 px-3">
+        {/* Search icon → search field opens as a dropdown */}
+        <div className="relative" ref={searchRef}>
           <button
             type="button"
-            onClick={() => toggleAppTimer()}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-white hover:bg-gray-200 shadow-sm border border-gray-200 transition-colors"
-            title={appTimer.running ? "Pause timer" : "Start timer"}
+            onClick={() => (showSearch ? setShowSearch(false) : focusNavbarSearch())}
+            className={`p-1.5 rounded transition-colors ${showSearch ? "is-open bg-gray-100" : "hover:bg-gray-100"}`}
+            title="Search"
+            aria-expanded={showSearch}
           >
-            {appTimer.running ? (
-              <Pause className="w-4 h-4 text-gray-700" />
-            ) : (
-              <Play className="w-4 h-4 text-gray-700" />
-            )}
+            <Search className="w-6 h-6 text-gray-700" />
           </button>
-          <span className="text-base font-mono text-gray-700 font-medium">{formatAppTimer(appTimer.seconds)}</span>
+          {/* Kept mounted (hidden) so list-page Search buttons can still focus it. */}
+          <div
+            className={`${showSearch ? "" : "hidden"} absolute right-0 top-11 z-50 w-[min(92vw,480px)] bg-white rounded-lg shadow-xl border border-gray-200 p-3`}
+          >
+            <div className="flex">
+              <GlobalSearch />
+            </div>
+          </div>
+        </div>
+
+        {/* Orange (+): create new + the modules that don't fit in the navbar */}
+        <div className="relative" ref={createRef}>
+          <button
+            onClick={() => {
+              setShowCreate((s) => !s);
+              setShowNotifications(false);
+              setShowApps(false);
+              setShowSearch(false);
+            }}
+            className={`w-9 h-9 flex-shrink-0 bg-orange-500 hover:bg-orange-600 rounded-full flex items-center justify-center transition-colors shadow-sm ${
+              moreActive ? "ring-2 ring-offset-2 ring-blue-600" : ""
+            }`}
+            title={moreModules.length ? "Create new · More modules" : "Create new"}
+            aria-expanded={showCreate}
+          >
+            <Plus className="w-5 h-5 text-white" strokeWidth={2.2} />
+          </button>
+
+          {showCreate && (
+            <div className="top-nav-dropdown absolute right-0 top-[calc(100%+0.6rem)] z-50 bg-white rounded-xl shadow-xl border border-gray-200 p-5 w-[min(96vw,980px)] max-h-[calc(100vh-6rem)] overflow-y-auto hover-scrollbar">
+              <div className="relative mb-4 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <input
+                  ref={createFilterRef}
+                  value={createFilter}
+                  onChange={(e) => setCreateFilter(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    const firstCreate = createShown[0]?.items[0];
+                    const firstPage = moreGroups[0]?.children?.[0];
+                    if (firstCreate) {
+                      setShowCreate(false);
+                      navigate(firstCreate.path, { state: { openCreate: true } });
+                    } else if (firstPage?.path) {
+                      navigate(firstPage.path);
+                    }
+                  }}
+                  placeholder="Search to create or open a module…"
+                  className="keep-box ua-field w-full h-9 pl-9 pr-3 text-sm rounded-md border border-gray-300 focus:outline-none"
+                />
+              </div>
+
+              {createShown.length > 0 && (
+                <>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Create new</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 mb-5">
+                    {createShown.map((group) => (
+                      <div key={group.title} className="min-w-0">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-1.5 tracking-tight">{group.title}</h4>
+                        <ul className="space-y-0.5">
+                          {group.items.map((it) => (
+                            <li key={it.label}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowCreate(false);
+                                  navigate(it.path, { state: { openCreate: true } });
+                                }}
+                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors text-left"
+                              >
+                                <it.icon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                <span className="truncate">{it.label}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {moreGroups.length > 0 && (
+                <>
+                  <h3 className="mb-2 pt-4 border-t border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    More modules
+                  </h3>
+                  <ModuleColumns groups={moreGroups} onNavigate={() => setShowCreate(false)} />
+                </>
+              )}
+
+              {createShown.length === 0 && moreGroups.length === 0 && (
+                <p className="py-6 text-center text-sm text-gray-500">Nothing matches “{createFilter}”</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Settings */}

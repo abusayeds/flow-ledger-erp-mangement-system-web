@@ -241,7 +241,7 @@ export const GlobalSearch: React.FC = () => {
   const hasQuery = query.trim().length > 0;
 
   return (
-    <div className="relative flex-1 min-w-0" ref={rootRef}>
+    <div className="navbar-keep relative flex-1 min-w-0" ref={rootRef}>
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-500 pointer-events-none z-10" />
       <input
         ref={inputRef}

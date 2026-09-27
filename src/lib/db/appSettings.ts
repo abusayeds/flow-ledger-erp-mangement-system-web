@@ -8,6 +8,7 @@ import React from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./db";
 import { api } from "@/lib/api/client";
+import { THEME_COLOR_DEFAULTS } from "@/lib/themeColors";
 import {
   UI_SECTION_TO_API,
   apiDocToUiSections,
@@ -938,6 +939,7 @@ export function isTimeLogColumnOn(
 
 export const SECTION_DEFAULTS: Record<string, any> = {
   general: { chat: true, publicUrl: true, appearance: "Dark", defaultMail: "Qayd Mail Server" },
+  themeColors: { ...THEME_COLOR_DEFAULTS },
   modules: Object.fromEntries(MODULE_NAMES.map((m) => [m, true])),
   currencyFormat: {
     currency: "$ USD",

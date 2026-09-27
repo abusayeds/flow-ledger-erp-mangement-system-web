@@ -25,7 +25,7 @@ const OldApp: React.FC = () => {
         {/* Main Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
-          <Header onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
+          <Header />
 
           {/* Content Area */}
           <div className="flex-1 overflow-auto bg-[#F8F9FA]">

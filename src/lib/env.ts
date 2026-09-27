@@ -36,7 +36,7 @@ const resolveBackendBase = (): string => {
   const fromApi = originFromApiUrl(import.meta.env.VITE_API_BASE_URL);
   if (fromApi && !isLocalHost(fromApi)) return fromApi;
 
-  if (import.meta.env.DEV) return fromEnv || "http://localhost:5500";
+  if (import.meta.env.DEV) return fromEnv || "http://localhost:2000";
 
   // Prod without env: use current site origin (expects /files proxied), not a hardcoded host.
   if (typeof window !== "undefined" && window.location?.origin) {
@@ -47,10 +47,10 @@ const resolveBackendBase = (): string => {
 
 export const BACKEND_BASE_URL: string = resolveBackendBase();
 
-/** Fully-qualified REST API base URL, e.g. http://localhost:5500/api/v1 */
+/** Fully-qualified REST API base URL, e.g. http://localhost:2000/api/v1 */
 export const API_BASE_URL: string =
   stripSlash(import.meta.env.VITE_API_BASE_URL || "") ||
-  `${BACKEND_BASE_URL || "http://localhost:5500"}/api/v1`;
+  `${BACKEND_BASE_URL || "http://localhost:2000"}/api/v1`;
 
 /** localStorage key used to persist the auth token. */
 export const AUTH_TOKEN_KEY: string =
