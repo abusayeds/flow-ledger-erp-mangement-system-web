@@ -2,92 +2,77 @@
  * File: src/components/layout/TopNav.tsx
  * Main modules in the navbar (replaces the left sidebar):
  *
- *   [Dashboard ▾] [Sales ▾] [Purchases ▾] … as many as fit
+ *   [Dashboard ▾] [Sales ▾] [Purchases ▾] … as many as fit … [Others ▾]
  *
  *  - Each module that fits gets its own button + dropdown of its pages.
- *  - Modules that don't fit are reported via `onOverflowChange`; the Header
- *    shows them inside the orange (+) menu (see `ModuleColumns`).
+ *  - Modules that don't fit go into one "Others" panel: a column per module,
+ *    single-page modules under "More", and a "Search a module or page…" filter
+ *    (Enter opens the first match).
  *  - Fit is measured from a hidden copy of the buttons and recalculated on
  *    resize (ResizeObserver), so wider screens show more modules directly.
- *  - Dropdowns are `position: fixed` under their button; long ones scroll with
- *    a scrollbar that stays hidden until hover.
- *  - While one dropdown is open, hovering another module switches to it.
+ *  - Panels are `position: fixed` under their button; long content scrolls
+ *    with a scrollbar that stays hidden until hover.
+ *  - While one panel is open, hovering another button switches to it.
  */
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
-import { hasPages, helpNavItem, useVisibleNavItems, type NavItem } from "./navItems";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ChevronDown, LayoutGrid, Search } from "lucide-react";
+import {
+  filterModuleGroups,
+  groupModules,
+  hasPages,
+  helpNavItem,
+  useVisibleNavItems,
+  type NavItem,
+} from "./navItems";
 
+const OTHERS = "__others";
+const OTHERS_LABEL = "Others";
 const GAP = 4; // px, matches gap-1
 const MENU_WIDTH = 240;
+const OTHERS_MAX_WIDTH = 900;
 
-/** Column layout of modules + their pages (used by the (+) menu). */
-export const ModuleColumns: React.FC<{ groups: NavItem[]; onNavigate?: () => void }> = ({ groups, onNavigate }) => {
-  const { pathname } = useLocation();
-  return (
-    <div className="columns-[210px] gap-x-6">
-      {groups.map((g) => {
-        const groupActive = !!g.children?.some((c) => c.path === pathname);
-        return (
-          <section key={g.label} className="break-inside-avoid mb-4">
-            <h4
-              className={`flex items-center gap-2 px-2.5 pb-1.5 mb-1 text-xs font-semibold uppercase tracking-wide border-b border-gray-200 ${
-                groupActive ? "text-blue-600" : "text-gray-500"
-              }`}
-            >
-              <g.icon className="w-3.5 h-3.5" strokeWidth={2} />
-              {g.label}
-            </h4>
-            {g.children?.map((c) => (
-              <Link
-                key={`${g.label}-${c.label}`}
-                to={c.path || "#"}
-                onClick={onNavigate}
-                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm ${
-                  c.path === pathname ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <c.icon className="w-4 h-4 shrink-0" strokeWidth={1.8} />
-                <span className="truncate">{c.label}</span>
-              </Link>
-            ))}
-          </section>
-        );
-      })}
-    </div>
-  );
-};
-
-export const TopNav: React.FC<{ onOverflowChange?: (items: NavItem[]) => void }> = ({ onOverflowChange }) => {
+export const TopNav: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const visible = useVisibleNavItems();
   const items = useMemo(() => [...visible, helpNavItem], [visible]);
 
   const rowRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef<HTMLInputElement>(null);
   const buttonRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const [fitCount, setFitCount] = useState(items.length);
   const [open, setOpen] = useState<string | null>(null);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
+  const [filter, setFilter] = useState("");
 
-  /* ── how many modules fit ─────────────────────────────────────── */
+  /* ── how many modules fit (leaving room for "Others" when needed) ── */
   const recalc = useCallback(() => {
     const row = rowRef.current;
     const measure = measureRef.current;
     if (!row || !measure) return;
-    const widths = (Array.from(measure.children) as HTMLElement[]).map((n) => n.offsetWidth);
+    const nodes = Array.from(measure.children) as HTMLElement[];
+    const widths = nodes.slice(0, items.length).map((n) => n.offsetWidth);
+    const othersWidth = nodes[items.length]?.offsetWidth ?? 0;
     const available = row.clientWidth;
-    let used = 0;
+
+    const total = widths.reduce((s, w) => s + w, 0) + GAP * Math.max(0, widths.length - 1);
+    if (total <= available) {
+      setFitCount(items.length);
+      return;
+    }
+    let used = othersWidth;
     let n = 0;
-    while (n < widths.length && used + (n ? GAP : 0) + widths[n] <= available) {
-      used += (n ? GAP : 0) + widths[n];
+    while (n < widths.length && used + GAP + widths[n] <= available) {
+      used += GAP + widths[n];
       n++;
     }
     setFitCount(n);
-  }, []);
+  }, [items.length]);
 
   useLayoutEffect(recalc, [recalc, items]);
   useEffect(() => {
@@ -99,29 +84,33 @@ export const TopNav: React.FC<{ onOverflowChange?: (items: NavItem[]) => void }>
 
   const shown = items.slice(0, fitCount);
   const overflow = useMemo(() => items.slice(fitCount), [items, fitCount]);
-  const overflowKey = overflow.map((i) => i.label).join("|");
-  useEffect(() => {
-    onOverflowChange?.(overflow);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- report only when the set changes
-  }, [overflowKey, onOverflowChange]);
+  const otherGroups = useMemo(() => groupModules(overflow), [overflow]);
+  const filteredGroups = useMemo(() => filterModuleGroups(otherGroups, filter), [otherGroups, filter]);
 
   /* ── active state ─────────────────────────────────────────────── */
   const isActive = (path?: string) => !!path && location.pathname === path;
   const itemActive = (i: NavItem) => isActive(i.path) || !!i.children?.some((c) => isActive(c.path));
+  const othersActive = overflow.some(itemActive);
 
   /* ── open / close ─────────────────────────────────────────────── */
   const openMenu = useCallback((id: string) => {
     const btn = buttonRefs.current[id];
     if (!btn) return;
     const r = btn.getBoundingClientRect();
-    const left = Math.max(8, Math.min(r.left, window.innerWidth - MENU_WIDTH - 8));
-    setPos({ left, top: r.bottom + 6 });
+    const width = id === OTHERS ? Math.min(OTHERS_MAX_WIDTH, window.innerWidth - 16) : MENU_WIDTH;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+    setPos({ left, top: r.bottom + 6, width });
+    setFilter("");
     setOpen(id);
   }, []);
   const close = useCallback(() => setOpen(null), []);
 
   useEffect(close, [location.pathname, close]); // navigating closes
   useEffect(close, [fitCount, close]); // layout changed → anchor moved
+
+  useEffect(() => {
+    if (open === OTHERS) filterRef.current?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -143,22 +132,49 @@ export const TopNav: React.FC<{ onOverflowChange?: (items: NavItem[]) => void }>
     };
   }, [open, close]);
 
-  /* ── rendering ────────────────────────────────────────────────── */
+  /* ── rendering helpers ────────────────────────────────────────── */
   const buttonCls = (active: boolean, isOpen: boolean) =>
     `top-nav-item shrink-0 flex items-center gap-1.5 h-9 px-3 rounded-md text-sm whitespace-nowrap transition-colors ${
       active
         ? "is-active bg-blue-600 text-white font-medium shadow-sm"
         : `text-gray-700 hover:bg-gray-100 ${isOpen ? "is-open bg-gray-100" : ""}`
     }`;
+  const linkCls = (active: boolean) =>
+    `flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm ${
+      active ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-700 hover:bg-gray-100"
+    }`;
+  const menuButton = (id: string, label: string, Icon: React.ElementType, active: boolean) => (
+    <button
+      key={id}
+      ref={(el) => {
+        buttonRefs.current[id] = el;
+      }}
+      type="button"
+      aria-haspopup="menu"
+      aria-expanded={open === id}
+      onClick={() => (open === id ? close() : openMenu(id))}
+      onMouseEnter={() => {
+        if (open && open !== id) openMenu(id);
+      }}
+      className={buttonCls(active, open === id)}
+    >
+      <Icon className="w-4 h-4" strokeWidth={1.8} />
+      <span className="tracking-tight">{label}</span>
+      <ChevronDown
+        className={`w-3.5 h-3.5 opacity-70 transition-transform ${open === id ? "rotate-180" : ""}`}
+        strokeWidth={2}
+      />
+    </button>
+  );
 
-  const openItem = open ? shown.find((i) => i.label === open) : null;
+  const openItem = open && open !== OTHERS ? shown.find((i) => i.label === open) : null;
   const dropdownLinks = openItem
     ? [...(openItem.path ? [{ ...openItem, children: undefined }] : []), ...(openItem.children || [])]
     : [];
 
   return (
     <nav className="top-nav relative min-w-0 flex-1 overflow-hidden" aria-label="Main modules">
-      {/* Hidden copy of every button — only used to measure widths. */}
+      {/* Hidden copy of every button (+ Others) — only used to measure widths. */}
       <div
         ref={measureRef}
         aria-hidden
@@ -171,32 +187,17 @@ export const TopNav: React.FC<{ onOverflowChange?: (items: NavItem[]) => void }>
             {hasPages(item) && <ChevronDown className="w-3.5 h-3.5" />}
           </span>
         ))}
+        <span className={`${buttonCls(false, false)} font-medium`}>
+          <LayoutGrid className="w-4 h-4" />
+          <span>{OTHERS_LABEL}</span>
+          <ChevronDown className="w-3.5 h-3.5" />
+        </span>
       </div>
 
       <div ref={rowRef} className="flex items-center gap-1 overflow-hidden">
         {shown.map((item) =>
           hasPages(item) ? (
-            <button
-              key={item.label}
-              ref={(el) => {
-                buttonRefs.current[item.label] = el;
-              }}
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded={open === item.label}
-              onClick={() => (open === item.label ? close() : openMenu(item.label))}
-              onMouseEnter={() => {
-                if (open && open !== item.label) openMenu(item.label);
-              }}
-              className={buttonCls(itemActive(item), open === item.label)}
-            >
-              <item.icon className="w-4 h-4" strokeWidth={1.8} />
-              <span className="tracking-tight">{item.label}</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 opacity-70 transition-transform ${open === item.label ? "rotate-180" : ""}`}
-                strokeWidth={2}
-              />
-            </button>
+            menuButton(item.label, item.label, item.icon, itemActive(item))
           ) : (
             <Link key={item.label} to={item.path || "#"} className={buttonCls(itemActive(item), false)}>
               <item.icon className="w-4 h-4" strokeWidth={1.8} />
@@ -204,28 +205,67 @@ export const TopNav: React.FC<{ onOverflowChange?: (items: NavItem[]) => void }>
             </Link>
           ),
         )}
+        {overflow.length > 0 && menuButton(OTHERS, OTHERS_LABEL, LayoutGrid, othersActive)}
       </div>
 
-      {openItem && pos && (
+      {open && pos && (openItem || open === OTHERS) && (
         <div
           ref={panelRef}
           role="menu"
-          className="top-nav-dropdown fixed z-50 bg-white rounded-xl shadow-xl border border-gray-200 p-1.5 max-h-[calc(100vh-6rem)] overflow-y-auto hover-scrollbar"
-          style={{ left: pos.left, top: pos.top, width: MENU_WIDTH }}
+          className="top-nav-dropdown fixed z-50 bg-white rounded-xl shadow-xl border border-gray-200 max-h-[calc(100vh-6rem)] overflow-y-auto hover-scrollbar"
+          style={{ left: pos.left, top: pos.top, width: pos.width }}
         >
-          {dropdownLinks.map((item) => (
-            <Link
-              key={item.label}
-              to={item.path || "#"}
-              role="menuitem"
-              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm ${
-                isActive(item.path) ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <item.icon className="w-4 h-4 shrink-0" strokeWidth={1.8} />
-              <span className="truncate">{item.label}</span>
-            </Link>
-          ))}
+          {open === OTHERS ? (
+            <div className="p-4">
+              <div className="relative mb-4 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <input
+                  ref={filterRef}
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  onKeyDown={(e) => {
+                    const first = filteredGroups[0]?.children?.[0];
+                    if (e.key === "Enter" && first?.path) navigate(first.path);
+                  }}
+                  placeholder="Search a module or page…"
+                  className="keep-box ua-field w-full h-9 pl-9 pr-3 text-sm rounded-md border border-gray-300 focus:outline-none"
+                />
+              </div>
+              {filteredGroups.length === 0 ? (
+                <p className="py-6 text-center text-sm text-gray-500">No matching pages</p>
+              ) : (
+                <div className="columns-[210px] gap-x-6">
+                  {filteredGroups.map((g) => (
+                    <section key={g.label} className="break-inside-avoid mb-4">
+                      <h4
+                        className={`flex items-center gap-2 px-2.5 pb-1.5 mb-1 text-xs font-semibold uppercase tracking-wide border-b border-gray-200 ${
+                          itemActive(g) ? "text-blue-600" : "text-gray-500"
+                        }`}
+                      >
+                        <g.icon className="w-3.5 h-3.5" strokeWidth={2} />
+                        {g.label}
+                      </h4>
+                      {g.children?.map((c) => (
+                        <Link key={`${g.label}-${c.label}`} to={c.path || "#"} role="menuitem" className={linkCls(isActive(c.path))}>
+                          <c.icon className="w-4 h-4 shrink-0" strokeWidth={1.8} />
+                          <span className="truncate">{c.label}</span>
+                        </Link>
+                      ))}
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-1.5">
+              {dropdownLinks.map((item) => (
+                <Link key={item.label} to={item.path || "#"} role="menuitem" className={linkCls(isActive(item.path))}>
+                  <item.icon className="w-4 h-4 shrink-0" strokeWidth={1.8} />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </nav>

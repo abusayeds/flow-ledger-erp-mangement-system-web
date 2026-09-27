@@ -1,96 +1,33 @@
 /**
  * File: src/components/layout/Header.tsx
  * Top app header (the app has no left sidebar — modules live here):
- *   Dashboard ▾ · Sales ▾ · … as many modules as fit (TopNav)
- *   | search icon (search field opens as a dropdown)
- *   | orange (+): Create new + the modules that did not fit | settings | bell | avatar
+ *   Dashboard ▾ · Sales ▾ · … as many modules as fit · Others ▾ (TopNav)
+ *   | search icon (search field opens as a dropdown) | settings | bell | avatar
  */
 
 import React, { useState, useRef, useEffect } from "react";
 import { flushSync } from "react-dom";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
-  Plus,
   Bell,
   ChevronDown,
   Search,
   X,
   Check,
   Megaphone,
-  Building2,
   Grid3x3,
-  Users,
-  FileText,
-  Receipt,
-  FileSpreadsheet,
   StickyNote,
-  DollarSign,
-  Truck,
-  ShoppingCart,
-  CreditCard,
-  Package,
-  Wrench,
-  FolderOpen,
-  Clock,
   Scan,
 } from "lucide-react";
 import { SettingsDropdown } from "@/pages/SettingsDropdown";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
-import { ModuleColumns, TopNav } from "@/components/layout/TopNav";
-import { filterModuleGroups, groupModules, type NavItem } from "@/components/layout/navItems";
+import { TopNav } from "@/components/layout/TopNav";
 import { FOCUS_GLOBAL_SEARCH_EVENT, focusNavbarSearch } from "@/lib/listToolbarEvents";
 import { MyAccountModal } from "@/components/modals/MyAccountModal";
 import useAuth from "@/hooks/useAuth";
 import { api } from "@/lib/api/client";
 import { toArray } from "@/services/_http";
 import { resolveMediaUrl } from "@/lib/env";
-
-/* ── Create mega-menu (columns mirror the reference) ─────────────── */
-const createGroups: {
-  title: string;
-  items: { label: string; icon: React.ElementType; path: string }[];
-}[] = [
-  {
-    title: "Sales",
-    items: [
-      { label: "Customer", icon: Users, path: "/sales/customers" },
-      { label: "Invoice", icon: FileText, path: "/sales/sales-invoice" },
-      { label: "Sales Receipt", icon: Receipt, path: "/sales/sales-receipts" },
-      { label: "Proforma Invoice", icon: FileSpreadsheet, path: "/sales/proforma-invoices" },
-      { label: "Estimate", icon: FileSpreadsheet, path: "/sales/estimates" },
-      { label: "Delivery Challan", icon: Truck, path: "/sales/delivery-challan" },
-      { label: "Credit Note", icon: CreditCard, path: "/sales/credit-notes" },
-      { label: "Payment Received", icon: DollarSign, path: "/sales/payment-received" },
-    ],
-  },
-  {
-    title: "Purchases",
-    items: [
-      { label: "Vendor", icon: Building2, path: "/purchase/vendors" },
-      { label: "Bill", icon: FileText, path: "/purchase/bills" },
-      { label: "Debit Note", icon: CreditCard, path: "/purchase/debit-notes" },
-      { label: "Purchase Order", icon: ShoppingCart, path: "/purchase/purchase-orders" },
-      { label: "Expense", icon: Receipt, path: "/purchase/expense" },
-      { label: "Payment Made", icon: DollarSign, path: "/purchase/payment-made" },
-    ],
-  },
-  {
-    title: "Items",
-    items: [
-      { label: "Product", icon: Package, path: "/items/product" },
-      { label: "Service", icon: Wrench, path: "/items/services" },
-    ],
-  },
-  {
-    title: "Others",
-    items: [
-      { label: "Project", icon: FolderOpen, path: "/project/projects" },
-      { label: "Time Log", icon: Clock, path: "/time-logs" },
-      // { label: "My Documents", icon: StickyNote, path: "/documents/my-documents" },
-      // { label: "Quick Scan", icon: Scan, path: "/documents/quick-scan" },
-    ],
-  },
-];
 
 const sampleAnnouncements = [
   { id: 1, title: "New feature: Bulk Invoice Export", description: "You can now export multiple invoices at once as PDF or CSV from the Invoices page.", date: "Apr 26, 2026", isNew: true },
@@ -105,7 +42,6 @@ const sampleNotifications = [
 ];
 
 export const Header: React.FC = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const displayName = user?.name || "Faisal Chowdhury";
@@ -118,11 +54,6 @@ export const Header: React.FC = () => {
   const [isOwner, setIsOwner] = useState(true);
   const [planBadge, setPlanBadge] = useState<{ name: string; trial: boolean; expired: boolean } | null>(null);
 
-  const [showCreate, setShowCreate] = useState(false);
-  /** Modules that did not fit in the navbar — listed inside the (+) menu. */
-  const [moreModules, setMoreModules] = useState<NavItem[]>([]);
-  const [createFilter, setCreateFilter] = useState("");
-  const createFilterRef = useRef<HTMLInputElement>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMyAccount, setShowMyAccount] = useState(false);
@@ -131,7 +62,6 @@ export const Header: React.FC = () => {
   const [announcements, setAnnouncements] = useState(sampleAnnouncements);
   const [notifTab, setNotifTab] = useState<"notifications" | "announcements">("notifications");
 
-  const createRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
@@ -198,7 +128,6 @@ export const Header: React.FC = () => {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (createRef.current && !createRef.current.contains(t)) setShowCreate(false);
       if (notifRef.current && !notifRef.current.contains(t)) setShowNotifications(false);
       if (appsRef.current && !appsRef.current.contains(t)) setShowApps(false);
       // The search's date picker renders in a body portal — clicks there are "inside".
@@ -225,7 +154,6 @@ export const Header: React.FC = () => {
       // event, and a still-hidden input can't take focus.
       flushSync(() => {
         setShowSearch(true);
-        setShowCreate(false);
         setShowNotifications(false);
       });
     };
@@ -234,30 +162,7 @@ export const Header: React.FC = () => {
   }, []);
   useEffect(() => {
     setShowSearch(false);
-    setShowCreate(false);
   }, [location.pathname]);
-
-  // (+) menu: fresh filter + focus each time it opens.
-  useEffect(() => {
-    if (!showCreate) return;
-    setCreateFilter("");
-    createFilterRef.current?.focus();
-  }, [showCreate]);
-
-  const createQuery = createFilter.trim().toLowerCase();
-  const createShown = createGroups
-    .map((g) => ({
-      ...g,
-      items:
-        !createQuery || g.title.toLowerCase().includes(createQuery)
-          ? g.items
-          : g.items.filter((i) => i.label.toLowerCase().includes(createQuery)),
-    }))
-    .filter((g) => g.items.length > 0);
-  const moreGroups = filterModuleGroups(groupModules(moreModules), createFilter);
-  const moreActive = moreModules.some(
-    (m) => m.path === location.pathname || !!m.children?.some((c) => c.path === location.pathname),
-  );
 
   const unreadCount = notifications.filter((n) => n.unread).length;
   const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
@@ -298,8 +203,8 @@ export const Header: React.FC = () => {
 
   return (
     <div className="app-navbar h-16 bg-white border-b border-gray-200 flex items-center px-3 sm:px-4 gap-2 sm:gap-3 relative z-40">
-      {/* Main modules: Dashboard first, then as many as fit (the rest → (+) menu) */}
-      <TopNav onOverflowChange={setMoreModules} />
+      {/* Main modules: Dashboard first, then as many as fit, the rest under Others */}
+      <TopNav />
 
       {/* Right cluster */}
       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
@@ -324,94 +229,6 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Orange (+): create new + the modules that don't fit in the navbar */}
-        <div className="relative" ref={createRef}>
-          <button
-            onClick={() => {
-              setShowCreate((s) => !s);
-              setShowNotifications(false);
-              setShowApps(false);
-              setShowSearch(false);
-            }}
-            className={`w-9 h-9 flex-shrink-0 bg-orange-500 hover:bg-orange-600 rounded-full flex items-center justify-center transition-colors shadow-sm ${
-              moreActive ? "ring-2 ring-offset-2 ring-blue-600" : ""
-            }`}
-            title={moreModules.length ? "Create new · More modules" : "Create new"}
-            aria-expanded={showCreate}
-          >
-            <Plus className="w-5 h-5 text-white" strokeWidth={2.2} />
-          </button>
-
-          {showCreate && (
-            <div className="top-nav-dropdown absolute right-0 top-[calc(100%+0.6rem)] z-50 bg-white rounded-xl shadow-xl border border-gray-200 p-5 w-[min(96vw,980px)] max-h-[calc(100vh-6rem)] overflow-y-auto hover-scrollbar">
-              <div className="relative mb-4 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                <input
-                  ref={createFilterRef}
-                  value={createFilter}
-                  onChange={(e) => setCreateFilter(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
-                    const firstCreate = createShown[0]?.items[0];
-                    const firstPage = moreGroups[0]?.children?.[0];
-                    if (firstCreate) {
-                      setShowCreate(false);
-                      navigate(firstCreate.path, { state: { openCreate: true } });
-                    } else if (firstPage?.path) {
-                      navigate(firstPage.path);
-                    }
-                  }}
-                  placeholder="Search to create or open a module…"
-                  className="keep-box ua-field w-full h-9 pl-9 pr-3 text-sm rounded-md border border-gray-300 focus:outline-none"
-                />
-              </div>
-
-              {createShown.length > 0 && (
-                <>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Create new</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 mb-5">
-                    {createShown.map((group) => (
-                      <div key={group.title} className="min-w-0">
-                        <h4 className="text-sm font-semibold text-gray-900 mb-1.5 tracking-tight">{group.title}</h4>
-                        <ul className="space-y-0.5">
-                          {group.items.map((it) => (
-                            <li key={it.label}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setShowCreate(false);
-                                  navigate(it.path, { state: { openCreate: true } });
-                                }}
-                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors text-left"
-                              >
-                                <it.icon className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                                <span className="truncate">{it.label}</span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {moreGroups.length > 0 && (
-                <>
-                  <h3 className="mb-2 pt-4 border-t border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    More modules
-                  </h3>
-                  <ModuleColumns groups={moreGroups} onNavigate={() => setShowCreate(false)} />
-                </>
-              )}
-
-              {createShown.length === 0 && moreGroups.length === 0 && (
-                <p className="py-6 text-center text-sm text-gray-500">Nothing matches “{createFilter}”</p>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Settings */}
         <div className="hidden sm:block">
           <SettingsDropdown />
@@ -422,7 +239,6 @@ export const Header: React.FC = () => {
           <button
             onClick={() => {
               setShowNotifications((s) => !s);
-              setShowCreate(false);
               setShowApps(false);
             }}
             className="p-1.5 hover:bg-gray-100 rounded transition-colors relative"
@@ -500,7 +316,6 @@ export const Header: React.FC = () => {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setShowCreate(false);
               setShowNotifications(false);
               setShowApps(false);
               setShowMyAccount(true);
